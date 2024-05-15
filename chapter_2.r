@@ -40,3 +40,11 @@ plot <- ggplot(pbp_r_p, aes(x = passing_yards)) +
 
 # Save the plot to a file
 ggsave("my_histogram_plot.png", plot, width = 10, height = 8)
+
+plot2 <- ggplot(pbp_r_p, aes(x= pass_length_air_yards, y=passing_yards)) +
+    geom_boxplot() +
+    theme_bw()+
+    xlab("Pass length in yards (long >= 20 yards, short < 20 yards)") +
+    ylab("Yards gained (or lost) during a passing play")
+
+ggsave("plot2.png", plot2, width=10, height=8)
