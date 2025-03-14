@@ -48,3 +48,95 @@ plot2 <- ggplot(pbp_r_p, aes(x= pass_length_air_yards, y=passing_yards)) +
     ylab("Yards gained (or lost) during a passing play")
 
 ggsave("plot2.png", plot2, width=10, height=8)
+
+pbp_r_p_s <-
+    pbp_r_p |> 
+    group_by(passer_player_name, passer_player_id, season) |>
+    summarize(
+        ypa = mean(passing_yards, na.rm = TRUE),
+        n =n(),
+        .groups = "drop"
+    )
+
+pbp_r_p_s |> 
+    arrange(-ypa) |>
+    print()
+
+pbp_r_p_100 <-
+    pbp_r_p |>
+    group_by(passer_id, passer, season) |>
+    summarize(
+        n = n(), ypa = mean(passing_yards),
+        .groups = "drop"
+    ) |>
+    filter(n>=100) |>
+    arrange(-ypa)
+
+pbp_r_p_100 |>
+    print(n = 20)
+
+air_yards_r <-
+    pbp_r_p |>
+    select(passer_id, passer, season, pass_length_air_yards, passing_yards) |>
+    arrange(passer_id, season, pass_length_air_yards) |> 
+    group_by(passer_id, passer, pass_length_air_yards, season) |>
+    summarize(n = n(),
+        ypa = mean(passing_yards),
+        .groups = "drop") |>
+    filter((n >= 100 & pass_length_air_yards == "short") |
+        (n >= 30 & pass_length_air_yards == "long")) |>
+    select(-n)
+
+# lag dataframe including a mutate to the seasons and add 1
+air_yards_lag_r <-
+    air_yards_r |>
+    mutate(season = season + 1) |>
+    rename(ypa_last = ypa)
+
+# join dfs to create pbp_r_p_s_pl
+pbp_r_p_s_pl <- 
+    air_yards_r |>
+    inner_join(air_yards_lag_r,
+    by = c("passer_id","pass_length_air_yards","season","passer"
+    ))
+
+pbp_r_p_s_pl |>
+    filter(passer %in% c("T.Brady", "A.Rodgers")) |>
+    print(n = Inf)
+
+pbp_r_p_s_pl |>
+    glimpse()
+
+# use distinct function w/ passer_id and then see how many rows exist
+pbp_r_p_s_pl |>
+    distinct(passer_id) |>
+    nrow()
+
+# scaterplots
+scatter_ypa_r <-
+    ggplot(pbp_r_p_s_pl, aes(x = ypa_last, y = ypa)) +
+    geom_point() +
+    facet_grid(cols = vars(pass_length_air_yards)) + 
+    labs(
+        x = "Yards per Attempt, Year n",
+        y = "Yards per Attempt, Year n + 1"
+    ) +
+    theme_bw() + 
+    theme(strip.background = element_blank())
+print(scatter_ypa_r)
+
+# encourging for short passes. Include line of best fit 
+# add geom_smooth() to previously saved plot
+scatter_ypa_r +
+    geom_smooth(method="lm")
+ggsave(filename="scatter_ypa_r.png", plot=scatter_ypa_r)
+
+# estimate using the correlations
+pbp_r_p_s_pl |>
+    filter(!is.na(ypa) & !is.na(ypa_last)) |>
+    group_by(pass_length_air_yards) |>
+    summarize(correlation = cor(ypa, ypa_last))
+
+# Pearson's correlation coefficient can vary from -1 to 1. Number closer to +1 imples strong positive correlations and more stablity
+# Number closer to 0 implies weak correlations 
+# Number closer to -1 implies decreating correlation and does not exist for stability
